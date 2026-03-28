@@ -69,25 +69,29 @@ const subscriptionSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-subscriptionSchema.pre("save", function (next) {
+subscriptionSchema.pre("save", async function () {
+  const renewalPeriods = {
+    daily: 1,
+    weekly: 7, // Adjust this for weekly frequency
+    monthly: 30, // Adjust this for monthly frequency
+    yearly: 365, // Adjust this for yearly frequency
+  };
+
+  if (!this.startDate) {
+    throw new Error("Subscription start date is required");
+  }
+
   if (!this.renewalDate) {
-    const renewalPeriods = {
-      daily: 1,
-      weekly: 7, // Adjust this for weekly frequency
-      monthly: 30, // Adjust this for monthly frequency
-      yearly: 365, // Adjust this for yearly frequency
-    };
-    this.renewalDate.setDate(
-      this.startDate.getDate() + renewalPeriods[this.frequency],
-    );
+    const period = renewalPeriods[this.frequency] || renewalPeriods.monthly;
+    const computedRenewal = new Date(this.startDate);
+    computedRenewal.setDate(computedRenewal.getDate() + period);
+    this.renewalDate = computedRenewal;
   }
 
   if (this.renewalDate <= new Date()) {
     // Check if renewal date is in the past
     this.status = "expired";
   }
-
-  next();
 });
 
 const Subscription = mongoose.model("Subscription", subscriptionSchema);
